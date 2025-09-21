@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartClass Pro - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./database.js"></script> 
+    <style>
+        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        @keyframes gradient-animation { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .animated-gradient { background: linear-gradient(-45deg, #020617, #083344, #020617, #0c4a6e); background-size: 400% 400%; animation: gradient-animation 15s ease infinite; }
+    </style>
+</head>
+<body class="animated-gradient text-white">
+    <div class="min-h-screen flex flex-col items-center justify-center p-4">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-2">SmartClass Pro</h1>
+            <p class="text-lg text-cyan-300">Next Generation College Management</p>
+        </div>
+
+        <div id="login-card" class="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-cyan-400/20 rounded-2xl shadow-2xl shadow-cyan-500/10 p-8">
+            <h2 class="text-2xl font-bold text-center mb-6">Login to Your Dashboard</h2>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="role" class="block text-sm font-medium text-gray-300 mb-2">Select Your Role</label>
+                    <select id="role" name="role" class="w-full bg-slate-800/80 border border-slate-700/80 rounded-md px-3 py-2 text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                        <option value="student">Student</option>
+                        <option value="faculty">Faculty</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="userid" class="block text-sm font-medium text-gray-300 mb-2">User ID</label>
+                    <input type="text" id="userid" name="userid" required
+                        class="w-full bg-slate-800/80 border border-slate-700/80 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                        placeholder="e.g., CS25001, F01, admin">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                    <input type="password" id="password" name="password" required
+                        class="w-full bg-slate-800/80 border border-slate-700/80 rounded-md px-3 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                        placeholder="••••••••">
+                </div>
+                <div id="error-message" class="text-red-400 text-sm text-center hidden">Invalid credentials or role. Please try again.</div>
+                <div>
+                    <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-sky-600 hover:opacity-90 text-white font-bold py-2 px-4 rounded-md shadow-lg shadow-cyan-500/25 transition-all duration-300 transform hover:scale-105">
+                        Login
+                    </button>
+                </div>
+            </form>
+        </div>
+        <p class="text-center text-gray-500 text-xs mt-8">
+            &copy;2025 SmartClass Pro. All rights reserved.
+        </p>
+    </div>
+
+    <script>
+        localStorage.clear();
+
+        const loginForm = document.getElementById('login-form');
+        const errorMessage = document.getElementById('error-message');
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const role = document.getElementById('role').value;
+            const userid = document.getElementById('userid').value;
+            const password = document.getElementById('password').value;
+
+            let isValid = false;
+            let targetPage = '';
+            
+            // 1. Look up the user in the main AppDatabase
+            const userAccount = AppDatabase[userid];
+
+            // 2. Check if the user exists, the password is correct, AND the selected role matches the user's actual role in the database.
+            if (userAccount && userAccount.profile.password === password && userAccount.profile.role === role) {
+                isValid = true;
+                targetPage = `./${role}.html`; // Dynamic redirection
+            }
+
+            if (isValid) {
+                // Store session info required by different dashboards
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userRole', role);
+                localStorage.setItem('userName', userAccount.profile.name);
+
+                // Set specific keys needed by each dashboard
+                if (role === 'student') {
+                    localStorage.setItem('loggedInStudentId', userid);
+                } else if (role === 'faculty') {
+                    localStorage.setItem('userId', userid);
+                } else if (role === 'admin') {
+                    localStorage.setItem('userId', userid);
+                }
+                
+                window.location.href = targetPage;
+            } else {
+                errorMessage.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

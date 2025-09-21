@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Dashboard - SmartClass Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .sidebar-link { transition: all 0.2s ease-in-out; }
+        .sidebar-link:hover, .sidebar-link.active {
+            background-color: #0891b2; color: white; transform: translateX(4px);
+            box-shadow: 0 4px 14px 0 rgba(0, 183, 255, 0.3);
+        }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* --- ADDED: Styles for Modal and Toast --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.7);
+            display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(5px);
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background-color: #0f172a; max-width: 600px; width: 95%; transition: transform 0.3s ease;
+             transform: scale(0.95); border-radius: 1rem; border: 1px solid #0e7490; }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .toast-notification { position: fixed; top: 20px; right: 20px; background-color: #059669; color: white;
+            padding: 12px 20px; border-radius: 8px; z-index: 100; transform: translateX(120%);
+            transition: transform 0.5s ease-in-out; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .toast-notification.show { transform: translateX(0); }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-200 flex">
+
+    <div id="toast-notification" class="toast-notification"></div>
+
+    <div id="student-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+                <div>
+                    <h3 id="modal-student-name" class="text-2xl font-bold text-white"></h3>
+                    <p id="modal-student-id" class="text-sm text-cyan-400"></p>
+                </div>
+                <button id="modal-close-btn" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-white mb-3">Assignments & Grades</h4>
+                        <div id="modal-assignments-list" class="space-y-3"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-white mb-3">Weekly Attendance</h4>
+                        <div class="h-40"><canvas id="modal-attendance-chart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <aside class="w-64 bg-slate-950/80 backdrop-blur-xl p-6 min-h-screen flex flex-col fixed shadow-2xl shadow-cyan-500/10 border-r border-cyan-400/10">
+        <div class="text-center mb-10"><h1 class="text-2xl font-bold text-white">SmartClass Pro</h1><p class="text-sm text-cyan-400">Faculty Panel</p></div>
+        <nav class="flex flex-col space-y-2">
+            <a href="#dashboard" class="sidebar-link active flex items-center p-3 rounded-lg" data-target="dashboard"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>Dashboard</a>
+            <a href="#roster" class="sidebar-link flex items-center p-3 rounded-lg" data-target="roster"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.663M12 3.375c-3.418 0-6.162 2.744-6.162 6.162s2.744 6.162 6.162 6.162 6.162-2.744 6.162-6.162S15.418 3.375 12 3.375z" /></svg>Class Roster</a>
+            <a href="#assignments" class="sidebar-link flex items-center p-3 rounded-lg" data-target="assignments"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>Assignments</a>
+            <a href="#announcements" class="sidebar-link flex items-center p-3 rounded-lg" data-target="announcements"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM10.34 11.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM10.34 7.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM19.34 15.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM19.34 11.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM19.34 7.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM4.66 15.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM4.66 11.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25zM4.66 7.84c-.688 0-1.25-.562-1.25-1.25s.562-1.25 1.25-1.25c.688 0 1.25.562 1.25 1.25s-.562 1.25-1.25 1.25z" /></svg>Announcements</a>
+            <a href="#materials" class="sidebar-link flex items-center p-3 rounded-lg" data-target="materials"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>Course Materials</a>
+        </nav>
+        <div class="mt-auto"><a href="#" id="logout-button" class="sidebar-link flex items-center p-3 rounded-lg text-red-400 hover:bg-red-500 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>Logout</a></div>
+    </aside>
+
+    <main class="ml-64 flex-1 p-8 bg-slate-900">
+        <header class="flex justify-between items-center mb-8">
+            <div><h2 class="text-3xl font-bold text-white">Welcome Back, <span id="faculty-name"></span>!</h2><p class="text-cyan-300">Your centralized management hub.</p></div>
+        </header>
+
+        <section id="dashboard" class="content-section active">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div class="lg:col-span-3 space-y-6"><div class="bg-slate-800/50 p-6 rounded-xl border border-cyan-400/20 shadow-lg"><h3 class="text-lg font-semibold text-cyan-300 mb-4">Recent Attendance Trends</h3><div class="h-64"><canvas id="attendance-chart"></canvas></div></div></div>
+                <div class="lg:col-span-2 space-y-6"><div class="bg-slate-800/50 p-6 rounded-xl border border-cyan-400/20 shadow-lg"><div class="flex justify-between items-center mb-4"><h3 class="text-lg font-semibold text-cyan-300">Grade Distribution</h3><select id="grade-chart-course-select" class="bg-slate-700 text-xs p-1 rounded-md"></select></div><div class="h-64"><canvas id="grade-chart"></canvas></div></div></div>
+            </div>
+        </section>
+
+        <section id="roster" class="content-section">
+            <h2 class="text-2xl font-bold mb-4">Class Roster & Management</h2>
+            <div class="bg-slate-800/50 p-6 rounded-xl border border-cyan-400/20">
+                <div class="mb-4"><label for="course-select-roster" class="block mb-2">Select Course to View Roster:</label><select id="course-select-roster" class="bg-slate-700 p-2 rounded-md w-full md:w-1/3"></select></div>
+                <div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-900"><tr><th class="p-3">Student ID</th><th class="p-3">Name</th><th class="p-3">Attendance</th><th class="p-3">Overall Grade</th><th class="p-3">Actions</th></tr></thead><tbody id="roster-table-body"></tbody></table></div>
+            </div>
+        </section>
+
+        <section id="assignments" class="content-section">
+            <h2 class="text-2xl font-bold mb-4">Assignment Management</h2>
+            <div class="bg-slate-800/50 p-6 rounded-xl border border-cyan-400/20">
+                <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-4">
+                    <div><label for="course-select-assignments" class="block mb-2">Select Course:</label><select id="course-select-assignments" class="bg-slate-700 p-2 rounded-md w-full"></select></div>
+                    <button id="create-assignment-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md self-end">Create New Assignment</button>
+                </div>
+                <div id="assignments-list" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <section id="announcements" class="content-section">
+            <h2 class="text-2xl font-bold mb-4">Send Announcement</h2>
+            <div class="bg-slate-800/50 p-6 rounded-xl border border-cyan-400/20">
+                 <div class="mb-4"><label for="course-select-announcement" class="block mb-2">Select Target Course:</label><select id="course-select-announcement" class="bg-slate-700 p-2 rounded-md w-full md:w-1/3"></select></div>
+                <div class="mb-4"><label for="announcement-message" class="block mb-2">Message:</label><textarea id="announcement-message" rows="5" class="bg-slate-700 p-2 rounded-md w-full" placeholder="Type your announcement here..."></textarea></div>
+                <button id="send-announcement-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md flex items-center"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>Send to Class</button>
+                <p id="announcement-status" class="text-green-400 mt-3 text-sm hidden"></p>
+            </div>
+        </section>
+        
+        <section id="materials" class="content-section">
+             <h2 class="text-2xl font-bold mb-4">Course Materials</h2>
+             <div class="bg-slate-800/50 p-6 rounded-xl border border-cyan-400/20">
+                <div class="mb-4"><label for="course-select-materials" class="block mb-2">Select Course:</label><select id="course-select-materials" class="bg-slate-700 p-2 rounded-md w-full md:w-1/3"></select></div>
+                <div class="flex justify-between items-center mb-4"><h3 id="materials-course-title" class="text-xl font-semibold"></h3><button class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-md">Upload New File</button></div>
+                <ul id="materials-list" class="space-y-3"></ul>
+             </div>
+        </section>
+    </main>
+
+    <script>
+        const facultyId = localStorage.getItem('userId');
+        const facultyName = localStorage.getItem('userName');
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('isLoggedIn') || localStorage.getItem('userRole') !== 'faculty' || !facultyId) {
+                window.location.href = 'index.html';
+            } else {
+                document.getElementById('faculty-name').textContent = facultyName;
+                initializeFacultyData(facultyId);
+            }
+        });
+        
+        // --- MOCK DATABASE (ENHANCED FOR NEW FEATURES) ---
+        function createMockDatabase() {
+            const courses = [{ id: 'CS101', name: 'Intro to Programming' }, { id: 'MA203', name: 'Advanced Calculus' }, { id: 'PY301', name: 'Quantum Physics' }];
+            const facultyNames = [ 'Dr. Wilson', 'Dr. Sharma', 'Prof. Khanna', 'Prof. Lovelace', 'Dr. Torvalds', 'Prof. Codd', 'Dr. Hinton', 'Prof. Eiffel', 'Dr. Bernoulli', 'Prof. Lutyens', 'Dr. Boole', 'Prof. Marconi', 'Prof. Fourier', 'Dr. Mead', 'Prof. Berners-Lee', 'Dr. Rivest', 'Prof. Bezos', 'Dr. Royce', 'Prof. Shokhanda', 'Dr. Manish' ];
+            const db = { faculty: {} };
+            
+            for (let i = 1; i <= 20; i++) {
+                const fId = `F${String(i).padStart(2, '0')}`;
+                const assignedCourses = [];
+                const courseCount = 2;
+                for (let j = 0; j < courseCount; j++) {
+                    const course = courses[(i + j) % courses.length];
+                    const students = [];
+                    const studentCount = 25;
+                    for(let k=1; k <= studentCount; k++) {
+                        students.push({
+                            id: `S${String(k).padStart(3, '0')}`, name: `Student Name ${k}`,
+                            attendanceHistory: [1, 1, 0, 1, 1, 1, 0].map(v => Math.random() > 0.2 ? 1: 0),
+                            assignments: [ { id: 1, title: 'Lab Report 1', grade: 85 }, { id: 2, title: 'Mid-Term Essay', grade: 92 }, { id: 3, title: 'Final Project', grade: null } ],
+                            overallGrade: Math.floor(Math.random() * 40) + 61
+                        });
+                    }
+                    assignedCourses.push({
+                        ...course, students: students, materials: [{ name: `Lecture ${j+1}.pdf`, url: '#' }],
+                        attendanceTrend: [65, 72, 75, 88, 85, 92, 91].map(v => v + j),
+                        assignments: [{ id: 1, title: 'Lab Report 1', dueDate: '2025-09-30' }, { id: 2, title: 'Mid-Term Essay', dueDate: '2025-10-15' }]
+                    });
+                }
+                db.faculty[fId] = { name: facultyNames[i-1], courses: assignedCourses };
+            }
+            return db;
+        }
+
+        const db = createMockDatabase();
+        let chartInstances = {};
+        
+        // --- INITIALIZATION ---
+        function initializeFacultyData(fId) {
+            const facultyData = db.faculty[fId];
+            if (!facultyData) return;
+            
+            const courseSelectors = document.querySelectorAll('select[id^="course-select"], select[id^="grade-chart-course-select"]');
+            courseSelectors.forEach(selector => {
+                selector.innerHTML = '';
+                facultyData.courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.id; option.textContent = `${course.id} - ${course.name}`;
+                    selector.appendChild(option);
+                });
+            });
+
+            // Event Listeners
+            document.getElementById('course-select-roster').addEventListener('change', (e) => renderRosterTable(facultyData, e.target.value));
+            document.getElementById('course-select-assignments').addEventListener('change', (e) => renderAssignmentsList(facultyData, e.target.value));
+            document.getElementById('course-select-materials').addEventListener('change', (e) => renderMaterialsList(facultyData, e.target.value));
+            document.getElementById('grade-chart-course-select').addEventListener('change', (e) => renderGradeDistributionChart(facultyData, e.target.value));
+            document.getElementById('send-announcement-btn').addEventListener('click', sendAnnouncement);
+            document.getElementById('modal-close-btn').addEventListener('click', closeStudentModal);
+            document.getElementById('student-modal').addEventListener('click', (e) => { if(e.target.id === 'student-modal') closeStudentModal(); });
+            document.getElementById('create-assignment-btn').addEventListener('click', () => {
+                const courseId = document.getElementById('course-select-assignments').value;
+                const newTitle = prompt('Enter new assignment title:');
+                if (newTitle) createAssignment(facultyData, courseId, newTitle);
+            });
+
+            if (facultyData.courses.length > 0) {
+                const initialCourseId = facultyData.courses[0].id;
+                renderRosterTable(facultyData, initialCourseId);
+                renderMaterialsList(facultyData, initialCourseId);
+                renderAssignmentsList(facultyData, initialCourseId);
+                renderAttendanceChart(facultyData);
+                renderGradeDistributionChart(facultyData, initialCourseId);
+            }
+        }
+        
+        // --- CHART RENDERING ---
+        function renderChart(canvasId, type, data, options) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            chartInstances[canvasId] = new Chart(ctx, { type, data, options });
+        }
+        function renderAttendanceChart(facultyData) {
+            renderChart('attendance-chart', 'line', {
+                labels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7'],
+                datasets: [{ label: 'Avg. Attendance', data: facultyData.courses[0].attendanceTrend, borderColor: '#22d3ee', backgroundColor: 'rgba(34, 211, 238, 0.2)', fill: true, tension: 0.4 }]
+            }, { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: {color: '#9ca3af'} }, x: { ticks: {color: '#9ca3af'} } }, plugins: { legend: { display: false } } });
+        }
+        function renderGradeDistributionChart(facultyData, courseId) {
+            const course = facultyData.courses.find(c => c.id === courseId);
+            if(!course) return;
+            const gradeRanges = { 'A (90+)': 0, 'B (80-89)': 0, 'C (70-79)': 0, 'D (<70)': 0 };
+            course.students.forEach(s => { if(s.overallGrade >= 90) gradeRanges['A (90+)']++; else if(s.overallGrade >= 80) gradeRanges['B (80-89)']++; else if(s.overallGrade >= 70) gradeRanges['C (70-79)']++; else gradeRanges['D (<70)']++; });
+            renderChart('grade-chart', 'bar', {
+                labels: Object.keys(gradeRanges),
+                datasets: [{ label: '# of Students', data: Object.values(gradeRanges), backgroundColor: ['#14b8a6', '#22d3ee', '#60a5fa', '#f59e0b'] }]
+            }, { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { ticks: {color: '#9ca3af', stepSize: 5 } }, y: { ticks: {color: '#9ca3af'} } }, plugins: { legend: { display: false } } });
+        }
+        
+        // --- NEW & ENHANCED FEATURE FUNCTIONS ---
+        function renderRosterTable(facultyData, courseId) {
+            const course = facultyData.courses.find(c => c.id === courseId);
+            const tableBody = document.getElementById('roster-table-body');
+            tableBody.innerHTML = '';
+            if (!course) return;
+            course.students.forEach(student => {
+                const attendancePercent = Math.round((student.attendanceHistory.filter(Boolean).length / student.attendanceHistory.length) * 100);
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-700 hover:bg-slate-800 cursor-pointer';
+                row.innerHTML = `<td class="p-3">${student.id}</td><td class="p-3">${student.name}</td><td class="p-3">${attendancePercent}%</td><td class="p-3 font-bold text-cyan-300">${student.overallGrade}%</td><td class="p-3"><button class="text-xs text-cyan-400 hover:underline">View Details</button></td>`;
+                row.addEventListener('click', () => showStudentModal(facultyData, courseId, student.id));
+                tableBody.appendChild(row);
+            });
+        }
+
+        function renderAssignmentsList(facultyData, courseId) {
+            const course = facultyData.courses.find(c => c.id === courseId);
+            const listContainer = document.getElementById('assignments-list');
+            listContainer.innerHTML = '';
+            if (!course || !course.assignments) return;
+            course.assignments.forEach(assignment => {
+                const item = document.createElement('div');
+                item.className = 'bg-slate-700/50 p-4 rounded-md flex justify-between items-center';
+                item.innerHTML = `<div><p class="font-semibold text-white">${assignment.title}</p><p class="text-sm text-gray-400">Due: ${assignment.dueDate}</p></div><button class="text-xs bg-cyan-800 text-cyan-200 px-3 py-1 rounded-full hover:bg-cyan-700">Manage</button>`;
+                listContainer.appendChild(item);
+            });
+        }
+
+        function createAssignment(facultyData, courseId, title) {
+            const course = facultyData.courses.find(c => c.id === courseId);
+            if (!course) return;
+            const newAssignment = { id: course.assignments.length + 1, title: title, dueDate: '2025-11-30' };
+            course.assignments.push(newAssignment);
+            renderAssignmentsList(facultyData, courseId);
+            showToast(`Assignment "${title}" created successfully!`);
+        }
+
+        function showStudentModal(facultyData, courseId, studentId) {
+            const course = facultyData.courses.find(c => c.id === courseId);
+            const student = course.students.find(s => s.id === studentId);
+            if (!student) return;
+
+            document.getElementById('modal-student-name').textContent = student.name;
+            document.getElementById('modal-student-id').textContent = `ID: ${student.id} | Course: ${course.name}`;
+            
+            const assignmentsList = document.getElementById('modal-assignments-list');
+            assignmentsList.innerHTML = '';
+            student.assignments.forEach(a => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center bg-slate-700/50 p-2 rounded';
+                item.innerHTML = `<span class="text-sm">${a.title}</span><div class="flex items-center gap-2"><input type="number" value="${a.grade || ''}" placeholder="N/A" class="w-16 bg-slate-800 text-center rounded p-1 text-white"><button class="text-xs bg-green-600 px-2 py-1 rounded hover:bg-green-500">Save</button></div>`;
+                item.querySelector('button').addEventListener('click', () => {
+                    a.grade = item.querySelector('input').value;
+                    showToast(`Grade for ${student.name} updated!`);
+                });
+                assignmentsList.appendChild(item);
+            });
+            
+            renderChart('modal-attendance-chart', 'doughnut', {
+                labels: ['Present', 'Absent'],
+                datasets: [{ data: [student.attendanceHistory.filter(Boolean).length, student.attendanceHistory.filter(v => !v).length], backgroundColor: ['#14b8a6', '#f43f5e'], borderWidth: 0 }]
+            }, { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {color: '#9ca3af'} } } });
+            
+            document.getElementById('student-modal').classList.add('active');
+        }
+
+        function closeStudentModal() {
+            document.getElementById('student-modal').classList.remove('active');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-notification');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        }
+
+        function sendAnnouncement() {
+            const status = document.getElementById('announcement-status');
+            if (document.getElementById('announcement-message').value.trim() === '') return;
+            status.textContent = `Sending...`; status.classList.remove('hidden');
+            setTimeout(() => {
+                status.textContent = `Announcement sent successfully!`;
+                document.getElementById('announcement-message').value = '';
+                setTimeout(() => status.classList.add('hidden'), 3000);
+            }, 1500);
+        }
+        
+        function renderMaterialsList(facultyData, courseId) {
+            const course = facultyData.courses.find(c => c.id === courseId);
+            const list = document.getElementById('materials-list'); list.innerHTML = '';
+            if (!course) { list.innerHTML = '<li>No materials found.</li>'; return; }
+            document.getElementById('materials-course-title').textContent = `${course.id} - ${course.name}`;
+            course.materials.forEach(material => {
+                const li = document.createElement('li'); li.className = 'bg-slate-700/50 p-3 rounded-md flex justify-between items-center';
+                li.innerHTML = `<span>${material.name}</span> <a href="${material.url}" class="text-cyan-400 hover:underline">Download</a>`;
+                list.appendChild(li);
+            });
+        }
+
+        // --- NAVIGATION & LOGOUT ---
+        document.querySelectorAll('.sidebar-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (link.id === 'logout-button') return;
+                e.preventDefault();
+                const targetId = link.getAttribute('data-target');
+                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active')); link.classList.add('active');
+                document.querySelectorAll('.content-section').forEach(section => section.classList.toggle('active', section.id === targetId));
+            });
+        });
+        document.getElementById('logout-button').addEventListener('click', (e) => { e.preventDefault(); localStorage.clear(); window.location.href = 'index.html'; });
+    </script>
+</body>
+</html>
